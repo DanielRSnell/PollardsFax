@@ -2,6 +2,12 @@ const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
 const Moment = require('moment');
+const firebase = require('firebase');
+
+firebase.initializeApp({
+    databaseURL: 'https://pollards-2cb70.firebaseio.com/'
+});
+
 
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -22,8 +28,8 @@ app.post('/order-recieved', function(req, res) {
 });
 
 const prepEmail = (OrderInfo) => {
+	
 	const Values = Object.values(OrderInfo);
-
 	const OrderDetails = [];
 	const CustomerAddress = [];
 	const OrderMethod = [];
@@ -184,21 +190,29 @@ const prepEmail = (OrderInfo) => {
 		);
 	});
 };
-var CheckPrevious;
-// For Production
+
 const getDataFromShopify = (id) => {
-	if ( CheckPrevious !== id ) { 
 	console.log('getting data...');
 	console.log(`This is the id: ${id}`);
 	// make the api call to get the data
 	Shopify.get('/admin/orders/' + id + '.json', function(err, data, headers) {
 		console.log('Order Details Obtained!');
 		const Order = data;
-		prepEmail(Order);
-		console.log(`Updating Order Flag`);
-		CheckPrevious = id;
+		
+		const fetch = axios.get(`https://pollards-2cb70.firebaseio.com/orders/${id}.json`)
+		.then( res => {
+
+			if ( res.data !== null ) {
+				console.log(`Order has been sent`);
+			} else {
+				const ref = firebase.database().ref(`orders/${id}`);
+				ref.update({ id: id });
+				prepEmail(Order);
+			}
+
+
 		});
-	}
+	});
 }
 
 function sendEmail(
